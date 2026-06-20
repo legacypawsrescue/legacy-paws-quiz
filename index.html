@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0057)file:///C:/Users/fusco/Downloads/legacy-match-LIVE_5.html -->
+<!-- saved from url=(0057)file:///C:/Users/fusco/Downloads/legacy-match-LIVE_6.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -274,9 +274,9 @@ const DOGS=[
    needExpert:true,
    why:'You can handle a strong, complicated heart, and you can give her the only-dog home she needs.',
    life:'Piper needs to be your one and only. No other animals, no young kids, and a person who reads dogs well. She is the hardest love we have, and the most loyal once she trusts you.'},
-  {id:'dobby', name:'Dobby', emoji:'🤍', blocks:{}, needExpert:false,
-   why:'You have the calm, steady home where a gentle soul can keep healing.',
-   life:'Dobby came to us at 24 pounds and fought his way back to 52. He is proof that patience works. He asks for soft routines and someone who is around.'},
+  {id:'dobby', name:'Dobby', emoji:'🤍', blocks:{}, needExpert:false, adopted:true,
+   why:'',
+   life:'Dobby came to us at 24 pounds and fought his way back to 52. In June 2026 he found his forever home. He is proof that patience works, and that the overlooked ones really do get their happy ending here.'},
   {id:'kyra', name:'Kyra', emoji:'🌟', blocks:{}, needExpert:false, mentorOnly:true,
    why:'',
    life:'Kyra is our permanent mentor dog. She is not up for adoption, but she helps every dog who comes through learn how to be a dog again.'},
@@ -284,6 +284,7 @@ const DOGS=[
 
 function dogPasses(d){
   const a=STATE.answers;
+  if(d.adopted) return false;
   for(const k in d.blocks){ if(a[k]===d.blocks[k]) return false; }
   if(d.needExpert && a.exp==='new') return false;
   if(d.mentorOnly) return false;
@@ -300,6 +301,15 @@ function matchDogs(){
         <h2>Let's talk first.</h2>
         <p class="lead">Based on your home, none of our dogs available right now would be a safe, honest fit. That's not a no to you. It often just means timing, and the right dog isn't here yet. Leave your email and we'll reach out the moment one arrives who truly fits your life.</p>
       </div>`));
+      const adoptedDogs=DOGS.filter(d=>d.adopted);
+      if(adoptedDogs.length){
+        const sb=el(`<div><p class="lead" style="color:var(--muted);margin-bottom:10px;">And so you know the wait is worth it, here's how it goes when it works:</p></div>`);
+        adoptedDogs.forEach(d=>{
+          sb.appendChild(el(`<div class="match" style="border-left-color:var(--teal);background:#f2fafb;">
+            <h4>${d.emoji} ${d.name} <span style="font-size:12px;color:var(--teal);font-weight:700;">ADOPTED</span></h4>
+            <p>${d.life}</p></div>`)); });
+        app.appendChild(sb);
+      }
       captureBlock({verb});
       return;
     }
@@ -309,6 +319,11 @@ function matchDogs(){
       box.appendChild(el(`<div class="match">
         <h4>${d.emoji} ${d.name}</h4>
         ${d.why?`<div class="why">Why you: ${d.why}</div>`:''}
+        <p>${d.life}</p></div>`)); });
+    // success stories: dogs already adopted, shown as proof the rescue works
+    DOGS.filter(d=>d.adopted).forEach(d=>{
+      box.appendChild(el(`<div class="match" style="border-left-color:var(--teal);background:#f2fafb;">
+        <h4>${d.emoji} ${d.name} <span style="font-size:12px;color:var(--teal);font-weight:700;">ADOPTED</span></h4>
         <p>${d.life}</p></div>`)); });
     app.appendChild(box);
     captureBlock({verb});
