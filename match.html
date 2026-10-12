@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find Your Match | Legacy Paws</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="paw">🐾</div>
+    <h1>Find Your Match</h1>
+    <p>Honest matching. Real dogs. The right fit, not just the cutest one.</p>
+    <div class="partner-banner" id="partner-banner"></div>
+  </div>
+  <div class="card" id="app"><p class="lead">Loading the dogs...</p></div>
+  <div class="crosslink" id="crosslink"></div>
+</div>
+
+<script src="archetypes.js"></script>
+<script src="shared.js"></script>
+<script>
+/* ============================================================
+   LEGACY PAWS: MATCH QUIZ
+
+   Links you can share:
+     match.html                       every rescue's dogs
+     match.html?rescue=legacy-paws    only one rescue's dogs
+
+   Dogs live in dogs.json. A dog only ever shows up if its rescue is
+   listed there with "approved": true. Partners can't add dogs
+   themselves; they submit through dog-archetype.html and Legacy Paws
+   reviews and adds them.
+   ============================================================ */
+
+const HOME_RESCUE = 'legacy-paws';
+const params = new URLSearchParams(location.search);
+const SCOPE = (params.get('rescue')||'').trim().toLowerCase() || null;   // null = all rescues
+
+const app = document.getElementById('app');
+const go = makeGo(app);
+let STATE = { path:'match', answers:{}, result:null };
+let RESCUES = {}, DOGS = [];
+
+function approved(id){ return !!(RESCUES[id] && RESCUES[id].approved===true); }
+function rescueOf(d){ return RESCUES[d.rescue]; }
+function inScope(d){ return approved(d.rescue) && (!SCOPE || d.rescue===SCOPE); }
+function keep(extra){ const p=new URLSearchParams(); if(SCOPE) p.set('rescue',SCOPE); Object.entries(extra||{}).forEach(([k,v])=>p.set(k,v)); const s=p.toString(); return s?'?'+s:''; }
+
+/* ---------------- LOAD DOGS ---------------- */
+fetch('dogs.json',{cache:'no-store'})
+  .then(r=>{ if(!r.ok) throw new Error(); return r.json(); })
+  .then(data=>{
+    RESCUES = data.rescues||{};
+    DOGS = (data.dogs||[]).map(d=>Object.assign({not_with:[],status:'available'},d));
+    if(SCOPE && !approved(SCOPE)){
+      app.innerHTML='<p class="lead">We could not find that rescue. Showing every partner\'s dogs instead.</p>';
+      setTimeout(()=>{ location.search = ''; }, 2200);
+      return;
+    }
+    paintBanner();
+    document.getElementById('crosslink').innerHTML =
+      `Struggling with a dog you already have? <a href="help.html${keep()}">Get help with your dog</a>`;
+    gateFlow();
+  })
+  .catch(()=>{ app.innerHTML='<p class="lead">The dogs did not load. Please refresh the page.</p>'; });
+
+function paintBanner(){
+  if(!SCOPE || SCOPE===HOME_RESCUE) return;
+  const r=RESCUES[SCOPE];
+  document.getElementById('partner-banner').innerHTML =
+    `Matching you with dogs from <strong>${esc(r.name)}</strong>${r.logo?`<img src="${esc(r.logo)}" alt="${esc(r.name)}">`:''}`;
+}
+
+/* ---------------- GATES ----------------
+   Only these six DECIDE the match. They are hard safety gates. */
+const GATES=[
+  {key:'kids', q:'Who lives in your home?', opts:[
+    {t:'Adults only', v:'none'},
+    {t:'Older kids (school age and up)', v:'older'},
+    {t:'Young children under 6', v:'young'}]},
+  {key:'pets_dogs', q:'Any other dogs at home?', opts:[
+    {t:'No dogs', v:'no'},{t:'Yes, one or more dogs', v:'yes'}]},
+  {key:'pets_cats', q:'Any cats at home?', opts:[
+    {t:'No cats', v:'no'},{t:'Yes, one or more cats', v:'yes'}]},
+  {key:'pets_small', q:'Any small animals or livestock? (rabbits, chickens, goats...)', opts:[
+    {t:'None', v:'no'},{t:'Yes', v:'yes'}]},
+  {key:'exp', q:'How would you describe your experience with dogs?', opts:[
+    {t:'First-time or newer owner', v:'new'},
+    {t:'Comfortable and experienced', v:'exp'},
+    {t:'Very experienced with strong-willed dogs', v:'expert'}]},
+  {key:'energy', q:'What does daily life look like?', opts:[
+    {t:'Quiet and low-key, lots of rest', v:'low'},
+    {t:'A steady mix of calm and activity', v:'med'},
+    {t:'Active, outdoors, always moving', v:'high'}]},
+];
+
+/* ---------------- REFLECTION QUESTIONS ----------------
+   These do NOT gate any dog. They deepen the experience and ride
+   along into the lead data. */
+const REFLECT=[
+  {key:'home_hours', lead:"Let's get to know your world a little.",
+    q:'On a normal day, how much of the time is someone home?', opts:[
+    {t:'Almost always, someone is usually here', v:'mostly'},
+    {t:'Part of the day, gone for stretches', v:'partial'},
+    {t:'Out most of the day, home evenings', v:'away'}]},
+  {key:'housing', q:'Where would the dog be living?', opts:[
+    {t:'House with a yard', v:'house_yard'},
+    {t:'House, no fenced yard', v:'house_nofence'},
+    {t:'Apartment or rental', v:'apartment'},
+    {t:'Land or farm', v:'land'}]},
+  {key:'outside', q:'When a dog needs to move and sniff and just be a dog, what can you offer?', opts:[
+    {t:'Trails, land, lots of room to roam', v:'lots'},
+    {t:'Daily walks and a yard', v:'walks'},
+    {t:'Shorter walks, quieter pace', v:'quiet'}]},
+  {key:'bond', lead:"This next part is more about your heart than your house.",
+    q:'What kind of bond are you hoping for?', opts:[
+    {t:'A steady shadow who is always near me', v:'shadow'},
+    {t:'A buddy for adventures and the outdoors', v:'adventure'},
+    {t:'A calm companion for a quiet life together', v:'calm'},
+    {t:'Honestly, I just want to give a dog a soft place to land', v:'soft'}]},
+  {key:'hard_days', q:'When a dog is struggling, scared, not house-trained yet, grieving, what feels true for you?', opts:[
+    {t:'I expect that, and I am ready to work through it', v:'ready'},
+    {t:'I can handle some, but I would want guidance', v:'guidance'},
+    {t:'I am hoping for a dog who is mostly settled already', v:'settled'}]},
+  {key:'past', q:'Have you shared your life with a dog before?', opts:[
+    {t:'Yes, and I still carry one in my heart', v:'lost'},
+    {t:'Yes, I have one or more now', v:'current'},
+    {t:'This would be my first', v:'first'}]},
+  {key:'commit', q:'A rescue dog can take weeks or months to fully exhale and trust. How does that sit with you?', opts:[
+    {t:'That is exactly what I am signing up for', v:'allin'},
+    {t:'I am willing, I just want to know what to expect', v:'willing'},
+    {t:'I had not thought about it that way', v:'new_thought'}]},
+  {key:'why', lead:"Almost done. This one matters most to us.",
+    q:'What pulled you toward a rescue instead of a breeder or a shop?', opts:[
+    {t:'I believe the overlooked ones deserve a real chance', v:'overlooked'},
+    {t:'I have rescued before and would never go back', v:'always'},
+    {t:'Something about it just feels right', v:'feels_right'}]},
+  {key:'timing', q:'Where are you in all this, honestly?', opts:[
+    {t:'Ready now, today if the right dog is here', v:'now'},
+    {t:'Getting ready, planning for soon', v:'soon'},
+    {t:'Just looking, feeling it out', v:'looking'}]},
+];
+
+function gateFlow(){
+  let i=0;
+  STATE.answers={};
+  const TOTAL=GATES.length+REFLECT.length;
+  function ask(){
+    if(i>=GATES.length+REFLECT.length){ matchDogs(); return; }
+    const g = i<GATES.length ? GATES[i] : REFLECT[i-GATES.length];
+    go(()=>{
+      app.appendChild(el(`<div class="progress"><span style="width:${(i/TOTAL)*100}%"></span></div>`));
+      const box=el(`<div>${g.lead?`<p class="lead" style="margin-bottom:8px;color:var(--muted);">${g.lead}</p>`:''}<h2>${g.q}</h2></div>`);
+      g.opts.forEach(o=>{ const b=el(`<button class="opt"><strong>${o.t}</strong></button>`);
+        b.onclick=()=>{ STATE.answers[g.key]=o.v; i++; ask(); }; box.appendChild(b); });
+      app.appendChild(box);
+    });
+  }
+  ask();
+}
+
+/* ---------------- MATCH ----------------
+   not_with values in dogs.json:
+     young_kids, kids (any kids), dogs, cats, small_animals
+   experienced_only: true blocks first-time owners. */
+const NOT_WITH = {
+  young_kids:    a=>a.kids==='young',
+  kids:          a=>a.kids==='young'||a.kids==='older',
+  dogs:          a=>a.pets_dogs==='yes',
+  cats:          a=>a.pets_cats==='yes',
+  small_animals: a=>a.pets_small==='yes',
+};
+function dogPasses(d){
+  const a=STATE.answers;
+  if(d.status!=='available' || !inScope(d)) return false;
+  for(const k of d.not_with){ if(NOT_WITH[k] && NOT_WITH[k](a)) return false; }
+  if(d.experienced_only && a.exp==='new') return false;
+  return true;
+}
+
+/* ---------------- ARCHETYPE FIT ----------------
+   Gates decide who is SAFE. This decides who FITS. Scores the person's
+   answers against the eight dog archetypes, then sorts the safe dogs so
+   the best-fitting archetype comes first. */
+function personArchetypes(a){
+  const s={}; ARCHETYPE_KEYS.forEach(k=>s[k]=0);
+  const add=o=>{ for(const k in o) s[k]+=o[k]; };
+  add({low:{'lap-anchor':2,'porch-sitter':2}, med:{'family-glue':1,'shadow':1}, high:{'trail-buddy':2,'backyard-romper':2}}[a.energy]||{});
+  if(a.kids==='young'||a.kids==='older') add({'family-glue':2,'one-person-dog':-2,'slow-trust-sweetheart':-1});
+  if(a.kids==='none') add({'one-person-dog':1});
+  if(a.pets_dogs==='yes') add({'family-glue':1});
+  add({new:{'slow-trust-sweetheart':-1,'one-person-dog':-1}, expert:{'one-person-dog':1}}[a.exp]||{});
+  add({mostly:{'shadow':2,'lap-anchor':1}, partial:{'family-glue':1,'slow-trust-sweetheart':1}, away:{'shadow':-3,'porch-sitter':1,'family-glue':1}}[a.home_hours]||{});
+  add({house_yard:{'backyard-romper':2}, house_nofence:{'trail-buddy':1}, apartment:{'lap-anchor':2,'backyard-romper':-1}, land:{'trail-buddy':2,'backyard-romper':1}}[a.housing]||{});
+  add({lots:{'trail-buddy':2}, walks:{'backyard-romper':1,'family-glue':1}, quiet:{'porch-sitter':2,'lap-anchor':1}}[a.outside]||{});
+  add({shadow:{'shadow':3,'one-person-dog':1}, adventure:{'trail-buddy':3}, calm:{'porch-sitter':2,'lap-anchor':2}, soft:{'slow-trust-sweetheart':3}}[a.bond]||{});
+  add({ready:{'slow-trust-sweetheart':2}, guidance:{'slow-trust-sweetheart':1}, settled:{'family-glue':1,'porch-sitter':1,'slow-trust-sweetheart':-2}}[a.hard_days]||{});
+  return s;
+}
+
+function archetypeBlock(top, second, noMatch){
+  const A=ARCHETYPES[top], B=ARCHETYPES[second];
+  return el(`<div class="foundation" style="background:#f2fafb;border:1px solid var(--line);">
+    <h4>${noMatch?'The kind of dog to look for':'The kind of dog that fits your life'}</h4>
+    <div style="font-size:18px;font-weight:700;color:var(--navy);margin:2px 0 4px;">${A.name}</div>
+    <p style="font-style:italic;margin-bottom:6px;">${A.scene}</p>
+    <p>${A.fit}</p>
+    <p style="margin-top:8px;color:var(--muted);">A close second for you: <b>${B.name}</b>. ${B.scene}</p>
+    ${noMatch?`<p style="margin-top:8px;">Wherever you end up meeting dogs, here or anywhere else, this is what to look for. Ask how the dog acts day to day, not just how they look.</p>`:''}
+  </div>`);
+}
+
+function dogCard(d, adopted){
+  const r=rescueOf(d);
+  const showRescue = !SCOPE && d.rescue!==HOME_RESCUE;
+  const arch = ARCHETYPES[d.archetype];
+  const why = d.why || (arch ? arch.fit : '');
+  const applyHref = d.link || r.adopt_url;
+  return el(`<div class="match"${adopted?' style="border-left-color:var(--teal);background:#f2fafb;"':''}>
+    ${d.photo?`<img class="dogpic" src="${esc(d.photo)}" alt="${esc(d.name)}">`:''}
+    <h4>${esc(d.emoji||'🐶')} ${esc(d.name)}${adopted?' <span style="font-size:12px;color:var(--teal);font-weight:700;">ADOPTED</span>':''}</h4>
+    ${arch&&!adopted?`<div class="rescue-tag" style="background:#e8f7f8;">${arch.name}</div> `:''}${showRescue?`<div class="rescue-tag">With ${esc(r.name)}</div>`:''}
+    ${!adopted&&d.strong?`<div class="why" style="color:var(--teal);">A strong fit for the life you described</div>`:''}
+    ${!adopted&&why?`<div class="why">Why you: ${esc(why)}</div>`:''}
+    <p>${esc(d.story)}</p>
+    ${!adopted&&showRescue&&applyHref?`<a class="apply" href="${esc(applyHref)}" target="_top">Meet ${esc(d.name)} through ${esc(r.name)} →</a>`:''}
+  </div>`);
+}
+
+function matchDogs(){
+  const pScores=personArchetypes(STATE.answers);
+  const ranked=ARCHETYPE_KEYS.slice().sort((x,y)=>pScores[y]-pScores[x]);
+  const topArch=ranked[0], secondArch=ranked[1];
+  STATE.answers.archetype=topArch;
+  const passing=DOGS.filter(dogPasses)
+    .map(d=>Object.assign({}, d, {fit: d.archetype in pScores ? pScores[d.archetype] : -99,
+                                  strong: d.archetype===topArch || d.archetype===secondArch}))
+    .sort((x,y)=>y.fit-x.fit);
+  const adopted=DOGS.filter(d=>d.status==='adopted' && inScope(d));
+  STATE.result={type:STATE.path, dogs:passing.map(d=>d.id)};
+  const verb='adopt';
+  const home = RESCUES[SCOPE||HOME_RESCUE] || {};
+  const dest = { href: home.adopt_url, label: 'Start an adoption application' };
+  const matchedRescues=[...new Set(passing.map(d=>d.rescue))];
+  const capOpts = { app, state:STATE, verb, dest, onRestart:gateFlow,
+    extraTags: matchedRescues.map(r=>'rescue:'+r).concat(SCOPE?['via:'+SCOPE]:[]),
+    extra: { scope: SCOPE||'all', matchedRescues,
+             rescueEmails: matchedRescues.map(r=>(RESCUES[r]||{}).email).filter(Boolean) } };
+
+  go(()=>{
+    if(!passing.length){
+      app.appendChild(el(`<div>
+        <h2>Let's talk first.</h2>
+        <p class="lead">Based on your home, none of the dogs available right now would be a safe, honest fit. That's not a no to you. It often just means timing, and the right dog isn't here yet. Leave your email and we'll reach out the moment one arrives who truly fits your life.</p>
+      </div>`));
+      app.appendChild(archetypeBlock(topArch, secondArch, true));
+      if(adopted.length){
+        const sb=el(`<div><p class="lead" style="color:var(--muted);margin-bottom:10px;">And so you know the wait is worth it, here's how it goes when it works:</p></div>`);
+        adopted.forEach(d=>sb.appendChild(dogCard(d,true)));
+        app.appendChild(sb);
+      }
+      captureBlock(capOpts);
+      return;
+    }
+    const box=el(`<div><h2>Here's who could be your match</h2>
+      <p class="lead">Honest matches only. These are the dogs who'd be safe and happy in the home you described, with the best fit for your life first.</p></div>`);
+    box.appendChild(archetypeBlock(topArch, secondArch, false));
+    passing.forEach(d=>box.appendChild(dogCard(d,false)));
+    adopted.forEach(d=>box.appendChild(dogCard(d,true)));
+    app.appendChild(box);
+    captureBlock(capOpts);
+  });
+}
+</script>
+</body></html>

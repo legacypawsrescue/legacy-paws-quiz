@@ -1,0 +1,62 @@
+{
+  "_how_to_edit": "Only Legacy Paws edits this file. A rescue's dogs show up only when that rescue has \"approved\": true. Partner dogs come in through dog-archetype.html, get reviewed, then get added here. See PARTNERS.md.",
+  "rescues": {
+    "legacy-paws": {
+      "name": "Legacy Paws Rescue",
+      "website": "https://www.legacypawsrescue.org",
+      "logo": "",
+      "email": "info@legacypawsrescue.org",
+      "adopt_url": "https://www.legacypawsrescue.org/adoption-application",
+      "approved": true
+    }
+  },
+  "dogs": [
+    {
+      "id": "piper",
+      "rescue": "legacy-paws",
+      "name": "Piper",
+      "emoji": "🛡️",
+      "photo": "",
+      "status": "available",
+      "archetype": "trail-buddy",
+      "not_with": [
+        "young_kids",
+        "dogs",
+        "cats",
+        "small_animals"
+      ],
+      "experienced_only": true,
+      "why": "You can handle a strong, complicated heart, and you can give her the only-dog home she needs.",
+      "story": "Piper needs to be your one and only. No other animals, no young kids, and a person who reads dogs well. She is the hardest love we have, and the most loyal once she trusts you.",
+      "link": ""
+    },
+    {
+      "id": "dobby",
+      "rescue": "legacy-paws",
+      "name": "Dobby",
+      "emoji": "🤍",
+      "photo": "",
+      "status": "adopted",
+      "archetype": "",
+      "not_with": [],
+      "experienced_only": false,
+      "why": "",
+      "story": "Dobby came to us at 24 pounds and fought his way back to 52. In June 2026 he found his forever home. He is proof that patience works, and that the overlooked ones really do get their happy ending here.",
+      "link": ""
+    },
+    {
+      "id": "kyra",
+      "rescue": "legacy-paws",
+      "name": "Kyra",
+      "emoji": "🌟",
+      "photo": "",
+      "status": "resident",
+      "archetype": "",
+      "not_with": [],
+      "experienced_only": false,
+      "why": "",
+      "story": "Kyra is our permanent mentor dog. She is not up for adoption, but she helps every dog who comes through learn how to be a dog again.",
+      "link": ""
+    }
+  ]
+}

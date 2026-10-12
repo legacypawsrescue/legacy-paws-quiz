@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Dog Archetype Assessment | Legacy Paws</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px;}
+  .field input,.field textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px 13px;
+    font-size:15px;font-family:inherit;}
+  .field textarea{min-height:110px;resize:vertical;}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--teal);}
+  .field .hint{font-size:12px;color:var(--muted);margin-top:3px;}
+  .err{font-size:13px;color:var(--coral);margin-bottom:8px;display:none;}
+  .arch{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:12px;padding:18px;
+    background:#f2fafb;margin-bottom:14px;}
+  .arch .kicker{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--teal);}
+  .arch h3{font-size:22px;color:var(--navy);margin:2px 0 8px;}
+  .arch .scene{font-style:italic;margin-bottom:10px;}
+  .arch p{font-size:14px;margin-bottom:6px;}
+  .runner{background:#fffdf6;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:14px;}
+  .gates{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:14px;margin-bottom:14px;}
+  .gates li{margin-left:18px;}
+  details.team{margin-top:16px;font-size:13px;}
+  details.team pre{background:#1B3A4B;color:#EFE9DF;border-radius:10px;padding:12px;white-space:pre-wrap;
+    word-break:break-word;font-size:12px;margin-top:8px;}
+  .seg{display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+  .seg button{flex:1;min-width:90px;background:#fff;border:1.5px solid var(--line);border-radius:10px;
+    padding:10px 8px;font-size:14px;cursor:pointer;color:var(--ink);}
+  .seg button.on{border-color:var(--teal);background:#e8f7f8;color:var(--navy);font-weight:600;}
+  .gate-row{margin-bottom:14px;}
+  .gate-row .q{font-size:15px;font-weight:600;color:var(--navy);margin-bottom:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="paw">🐾</div>
+    <h1>What's This Dog's Archetype?</h1>
+    <p>For the Legacy Paws team and approved partner rescues.</p>
+  </div>
+  <div class="card" id="app"></div>
+</div>
+
+<script src="archetypes.js"></script>
+<script src="shared.js"></script>
+<script>
+/* ============================================================
+   LEGACY PAWS: DOG ARCHETYPE ASSESSMENT
+   For staff, fosters, and APPROVED partner rescues only.
+   Nothing here publishes a dog. It sends a profile to Legacy Paws
+   (path: 'dog-profile' in QuizLeads) for review. A dog only goes
+   live in the matching quiz once Legacy Paws adds it to dogs.json
+   under a rescue marked "approved": true.
+   ============================================================ */
+const app = document.getElementById('app');
+const go = makeGo(app);
+const params = new URLSearchParams(location.search);
+let S = { about:{}, scores:{}, picks:{}, gates:{}, dog:{} };
+
+/* ---------- Part A: the nine archetype questions ---------- */
+const AQ = [
+  {q:"How would you describe this dog's energy day to day?", opts:[
+    ['Low, mostly resting, content to lie around', {'lap-anchor':2,'porch-sitter':2}],
+    ['Moderate, a steady mix of rest and activity', {'family-glue':1,'shadow':1}],
+    ['High, always ready to go, hard to tire out', {'trail-buddy':2,'backyard-romper':2}]]},
+  {q:'Where does this dog seem happiest?', opts:[
+    ['Glued to your side or curled in your lap', {'lap-anchor':2,'shadow':1}],
+    ['Following you from room to room', {'shadow':2}],
+    ['Out on a trail, hike, or run', {'trail-buddy':2}],
+    ['Tearing around a yard with a toy', {'backyard-romper':2}],
+    ['A sunny, quiet spot, mostly by themselves', {'porch-sitter':2}]]},
+  {q:'How does this dog react to new people?', opts:[
+    ['Warms up to almost anyone, fast', {'family-glue':2}],
+    ['Cautious at first, but comes around', {'slow-trust-sweetheart':1,'one-person-dog':1}],
+    ['Friendly enough, but clearly has a favorite person', {'one-person-dog':2}],
+    ['Takes real time, needs a slow, patient introduction', {'slow-trust-sweetheart':3}]]},
+  {q:'How does this dog handle a busy, noisy household (kids, guests, chaos)?', opts:[
+    ['Thrives in it, the more going on the better', {'family-glue':2}],
+    ['Handles it fine, nothing special either way', {'family-glue':1,'trail-buddy':1}],
+    ['Gets overwhelmed and needs to retreat', {'slow-trust-sweetheart':2,'lap-anchor':1}]]},
+  {q:'How does this dog handle being left alone?', opts:[
+    ['Struggles, real distress, hard to leave', {'shadow':2,'one-person-dog':1}],
+    ['Some fussing at first, but settles', {'slow-trust-sweetheart':1}],
+    ['Totally fine, genuinely independent', {'trail-buddy':1,'family-glue':1,'porch-sitter':1}]]},
+  {q:"What's this dog's relationship with play?", opts:[
+    ['Loves toys, fetch, zoomies. Play is everything', {'backyard-romper':2}],
+    ['More into affection and closeness than play', {'lap-anchor':2}],
+    ['Wants a real job: hiking, running, working alongside you', {'trail-buddy':2}],
+    ["Doesn't play much, just wants to be near you", {'shadow':1,'porch-sitter':1}]]},
+  {q:'Who does this dog bond with in a household?', opts:[
+    ['Everyone pretty equally', {'family-glue':2}],
+    ['One specific person, clearly above everyone else', {'one-person-dog':3}],
+    ["Whoever's giving them attention in the moment", {'lap-anchor':1}]]},
+  {q:'Where is this dog in life?', opts:[
+    ['Senior or low-key by nature, wants an easy pace', {'porch-sitter':3}],
+    ['Young and full of go', {'trail-buddy':1,'backyard-romper':1}],
+    ['Middle-aged, settled temperament either way', {}]]},
+  {q:"What do you know about this dog's past, if anything?", opts:[
+    ['Signs of past under-socialization, trauma, or neglect', {'slow-trust-sweetheart':2}],
+    ['Seems to have had a stable, social upbringing', {'family-glue':1}],
+    ['Unknown, no real signal either way', {}]]},
+];
+
+/* ---------- Part B: safety gates (these decide who sees the dog) ---------- */
+const GQ = [
+  {key:'young_kids',    q:'Young children under 6?'},
+  {key:'kids',          q:'Older kids (school age and up)?'},
+  {key:'dogs',          q:'Other dogs?'},
+  {key:'cats',          q:'Cats?'},
+  {key:'small_animals', q:'Small animals or livestock (rabbits, chickens, goats)?'},
+];
+
+/* ---------- Intro ---------- */
+function intro(){
+  go(()=>{
+    app.appendChild(el(`<div>
+      <h2>Let's find out who this dog really is.</h2>
+      <p class="lead">Answer based on how this dog actually acts. Not how you wish they acted, and not their breed. Just what you've seen. It takes about five minutes.</p>
+      <p class="lead" style="font-size:14px;color:var(--muted);">This tool is for the Legacy Paws team and our approved partner rescues. Finishing it sends the dog's profile to Legacy Paws for review. Nothing goes live in the matching quiz until we've added it.</p>
+      <div class="err" id="err">Please fill in your rescue name and a valid email.</div>
+      <div class="field"><label>Your rescue</label><input id="a-rescue" value="${esc(params.get('rescue')||'')}" placeholder="Rescue name"></div>
+      <div class="field"><label>Your name</label><input id="a-name" placeholder="First and last name"></div>
+      <div class="field"><label>Your email</label><input id="a-email" type="email" placeholder="you@yourrescue.org"></div>
+      <button class="btn full" id="go">Start the assessment</button>
+    </div>`));
+    document.getElementById('go').onclick=()=>{
+      const rescue=document.getElementById('a-rescue').value.trim();
+      const email=document.getElementById('a-email').value.trim();
+      if(!rescue || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ document.getElementById('err').style.display='block'; return; }
+      S.about={ rescue, rescueId: params.get('rescue')||'', name:document.getElementById('a-name').value.trim(), email };
+      S.scores={}; ARCHETYPE_KEYS.forEach(k=>S.scores[k]=0); S.picks={};
+      askA(0);
+    };
+  });
+}
+
+const TOTAL = AQ.length + 2;  // nine questions + gates + dog details
+
+function askA(i){
+  if(i>=AQ.length){ askGates(); return; }
+  const g=AQ[i];
+  go(()=>{
+    app.appendChild(el(`<div class="progress"><span style="width:${(i/TOTAL)*100}%"></span></div>`));
+    const box=el(`<div><p class="lead" style="margin-bottom:6px;color:var(--muted);">Question ${i+1} of ${AQ.length}</p><h2>${g.q}</h2></div>`);
+    g.opts.forEach(([t,pts])=>{
+      const b=el(`<button class="opt"><strong>${esc(t)}</strong></button>`);
+      b.onclick=()=>{ for(const k in pts) S.scores[k]+=pts[k]; S.picks['q'+(i+1)]=t; askA(i+1); };
+      box.appendChild(b);
+    });
+    app.appendChild(box);
+  });
+}
+
+function askGates(){
+  go(()=>{
+    app.appendChild(el(`<div class="progress"><span style="width:${(AQ.length/TOTAL)*100}%"></span></div>`));
+    const box=el(`<div>
+      <h2>Who can this dog safely live with?</h2>
+      <p class="lead">These answers decide which homes ever see this dog, so be honest. If you haven't seen it, choose <b>Not sure</b> and we'll treat it as a no until we know more.</p>
+    </div>`);
+    const rows=GQ.map(g=>({g, val:null})).concat([{g:{key:'experienced', q:'Does this dog need an experienced handler? (Not a fit for first-time owners)'}, val:null, yn:true}]);
+    rows.forEach(r=>{
+      const row=el(`<div class="gate-row"><div class="q">${r.yn?r.g.q:'Can live with '+r.g.q.charAt(0).toLowerCase()+r.g.q.slice(1)}</div><div class="seg"></div></div>`);
+      const seg=row.querySelector('.seg');
+      const choices = r.yn ? [['Yes','yes'],['No','no']] : [['Yes','yes'],['No','no'],['Not sure','unsure']];
+      choices.forEach(([t,v])=>{
+        const b=el(`<button>${t}</button>`);
+        b.onclick=()=>{ r.val=v; seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); };
+        seg.appendChild(b);
+      });
+      box.appendChild(row);
+    });
+    box.appendChild(el(`<div class="err" id="gerr">Please answer every question.</div>`));
+    const next=el(`<button class="btn full">Next</button>`);
+    next.onclick=()=>{
+      if(rows.some(r=>!r.val)){ document.getElementById('gerr').style.display='block'; return; }
+      S.gates={}; rows.forEach(r=>S.gates[r.g.key]=r.val);
+      askDog();
+    };
+    box.appendChild(next);
+    app.appendChild(box);
+  });
+}
+
+function askDog(){
+  go(()=>{
+    app.appendChild(el(`<div class="progress"><span style="width:${((AQ.length+1)/TOTAL)*100}%"></span></div>`));
+    app.appendChild(el(`<div>
+      <h2>Tell us about this dog.</h2>
+      <div class="err" id="derr">Please add the dog's name and story.</div>
+      <div class="field"><label>Dog's name</label><input id="d-name"></div>
+      <div class="field"><label>Photo link</label><input id="d-photo" placeholder="https://...">
+        <div class="hint">Optional. A link to one good, clear photo.</div></div>
+      <div class="field"><label>Their story</label><textarea id="d-story" placeholder="Where they came from, what they've been through, what they're like now. The honest version, including the hard parts."></textarea></div>
+      <div class="field"><label>Who is this dog perfect for?</label><input id="d-why" placeholder="One sentence, like: You have a calm home and the patience to let a shy girl warm up.">
+        <div class="hint">Optional. We'll use the archetype's description if you leave it blank.</div></div>
+      <div class="field"><label>Link to this dog's page</label><input id="d-link" placeholder="https://...">
+        <div class="hint">Optional. Where people go to apply for this dog.</div></div>
+      <button class="btn full" id="see">See this dog's archetype</button>
+    </div>`));
+    document.getElementById('see').onclick=()=>{
+      const name=document.getElementById('d-name').value.trim(), story=document.getElementById('d-story').value.trim();
+      if(!name || !story){ document.getElementById('derr').style.display='block'; return; }
+      S.dog={ name, story,
+        photo:document.getElementById('d-photo').value.trim(),
+        why:document.getElementById('d-why').value.trim(),
+        link:document.getElementById('d-link').value.trim() };
+      result();
+    };
+  });
+}
+
+function buildProfile(top){
+  const not_with = GQ.filter(g=>S.gates[g.key]!=='yes').map(g=>g.key);
+  // If older kids are a no, young kids are a no too.
+  if(not_with.includes('kids') && !not_with.includes('young_kids')) not_with.unshift('young_kids');
+  return {
+    id: S.dog.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''),
+    rescue: S.about.rescueId || S.about.rescue.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''),
+    name: S.dog.name, emoji: '🐶', photo: S.dog.photo,
+    status: 'available',
+    archetype: top,
+    not_with,
+    experienced_only: S.gates.experienced==='yes',
+    why: S.dog.why, story: S.dog.story, link: S.dog.link
+  };
+}
+
+function result(){
+  const ranked = ARCHETYPE_KEYS.slice().sort((a,b)=>S.scores[b]-S.scores[a]);
+  const top=ranked[0], second=ranked[1];
+  const close = S.scores[top]-S.scores[second] <= 1 && S.scores[second]>0;
+  const A=ARCHETYPES[top], B=ARCHETYPES[second];
+  const profile = buildProfile(top);
+  const gateLines = GQ.map(g=>`<li>${S.gates[g.key]==='yes'?'Can live with':'Not shown to homes with'} ${g.q.replace('?','').toLowerCase()}${S.gates[g.key]==='unsure'?' (not sure yet)':''}</li>`).join('')
+    + `<li>${profile.experienced_only?'Experienced handlers only':'Open to first-time owners'}</li>`;
+
+  go(()=>{
+    app.appendChild(el(`<div>
+      <div class="arch">
+        <div class="kicker">${esc(S.dog.name)}'s archetype is</div>
+        <h3>${A.name}</h3>
+        <div class="scene">${A.scene}</div>
+        <p><b>Ideal traits:</b> ${A.traits}</p>
+        <p><b>Best fit:</b> ${A.fit}</p>
+      </div>
+      ${close?`<div class="runner"><b>Close call.</b> ${esc(S.dog.name)} also scored high as <b>${B.name}</b>: ${B.scene} Keep both in mind when you write their profile.</div>`:''}
+      <div class="gates"><b>Who will see ${esc(S.dog.name)} in the matching quiz</b><ul style="margin-top:6px;">${gateLines}</ul></div>
+      <div class="err" id="serr">Something went wrong. Please try again.</div>
+      <button class="btn full navy" id="send">Send ${esc(S.dog.name)}'s profile to Legacy Paws</button>
+      <p class="privacy" style="margin-top:8px;">We review every dog before it goes live, and we'll reach out if we have questions.</p>
+      <div id="sent"></div>
+      <button class="btn ghost restart" id="again">Assess another dog</button>
+      <details class="team"><summary>For the Legacy Paws team: ready-to-paste entry for dogs.json</summary><pre>${esc(JSON.stringify(profile,null,2))}</pre></details>
+    </div>`));
+    document.getElementById('again').onclick=()=>{ S.scores={}; ARCHETYPE_KEYS.forEach(k=>S.scores[k]=0); S.picks={}; askA(0); };
+    document.getElementById('send').onclick=()=>{
+      const btn=document.getElementById('send'); btn.textContent='Sending...'; btn.disabled=true;
+      const contact={
+        email:S.about.email, name:S.about.name, path:'dog-profile',
+        tags:['dog-profile','needs-review','rescue:'+profile.rescue,'archetype:'+top],
+        resultLabel:'archetype:'+top+(close?' (close: '+second+')':''),
+        details:'Rescue: '+S.about.rescue+' | Dog: '+S.dog.name+' | '+Object.entries(S.picks).map(([k,v])=>k+'='+v).join('; ')
+               +' | gates: '+JSON.stringify(S.gates),
+        rescueName:S.about.rescue, dogProfile:profile, scores:S.scores
+      };
+      lpSend(contact).then(()=>{
+        btn.remove();
+        document.getElementById('sent').innerHTML=`<div class="ok">Sent. Thank you for taking the time to really know ${esc(S.dog.name)}. 🐾</div>`;
+      }).catch(()=>{ btn.textContent='Try again'; btn.disabled=false; document.getElementById('serr').style.display='block'; });
+    };
+  });
+}
+
+intro();
+</script>
+</body></html>

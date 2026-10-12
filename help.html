@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Help With Your Dog | Legacy Paws</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="paw">🐾</div>
+    <h1>Help With Your Dog</h1>
+    <p>Something's hard right now. Let's look at it together.</p>
+  </div>
+  <div class="card" id="app"></div>
+  <div class="crosslink" id="crosslink"></div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+/* ============================================================
+   LEGACY PAWS: HELP WITH MY DOG (standalone)
+   Share link: help.html   (add ?rescue=<id> to tag leads
+   with the partner who sent them)
+   ============================================================ */
+const params = new URLSearchParams(location.search);
+const SCOPE = (params.get('rescue')||'').trim().toLowerCase() || null;
+const app = document.getElementById('app');
+const go = makeGo(app);
+let STATE = { path:'help', answers:{}, result:null };
+
+document.getElementById('crosslink').innerHTML =
+  `Looking for the right dog? <a href="match.html${SCOPE?'?rescue='+encodeURIComponent(SCOPE):''}">Find your match</a>`;
+
+/* ---------------- HELP PATH (mismatch engine) ---------------- */
+const HELP_Q=[
+  {key:'issue', q:"What's the hardest thing right now?", opts:[
+    {t:'He guards food, toys, or space', v:'guard'},
+    {t:'He barks or lunges at dogs or people', v:'react'},
+    {t:'He falls apart when I leave', v:'sep'},
+    {t:'He pulls hard on the leash', v:'leash'},
+    {t:'He jumps and never settles', v:'jump'},
+    {t:"He's glued to me and the house is always full", v:'velcro'},
+    {t:'He just came home and he is hiding, shut down, or barely eating', v:'shutdown'},
+    {t:'He has accidents in the house', v:'potty'},
+    {t:'He chews up and destroys things', v:'chew'},
+    {t:'He mouths or nips at hands and clothes', v:'nip'},
+    {t:'He is scared of people and hides or backs away', v:'shy'},
+    {t:'He panics at storms, fireworks, or loud noises', v:'noise'},
+    {t:'He barks at every sound and everything out the window', v:'bark'},
+    {t:"He won't come when I call him", v:'recall'},
+    {t:'My dogs are fighting with each other', v:'housefight'},
+    {t:'He digs out, jumps the fence, or bolts out the door', v:'escape'},
+    {t:"Honestly, I'm not sure, just something's off", v:'unsure'}]},
+];
+
+const PLANS={
+  guard:{title:'He growls over his food',
+    read:"That growl isn't him being bad. It's him telling the truth: in some earlier life, things he needed disappeared, and now he's keeping what's his the only way he knows how.",
+    feeling:'Fear of losing what he needs to survive. Not dominance. Survival.',
+    getting:'Right now the growl works. People back off, so it keeps happening. We change what it earns him.',
+    now:"Never punish the growl. The growl is the warning label. Punish it and you get a dog who bites with no warning. Instead, walk past his bowl and drop something better in it, chicken, cheese, so your approach starts to mean good things arrive, not leave. Hand-feed a few meals so the food literally comes from you. If you must move a bowl, lift it straight up when it's empty, never drag it out from under him.",
+    backfire:'Taking his bowl away "to show him who\'s boss" teaches him you are the threat he feared. It makes guarding worse, not better.',
+    help:"Help is more there than it looks. Most food guarding settles with steady, calm work like this over a few weeks. If he's already bitten or it's escalating, a certified behavior consultant can work alongside you, and that's a strength, not a failure."},
+  react:{title:'He barks and lunges',
+    read:"A dog who lunges usually isn't angry. He's scared, and he's learned that making himself big and loud makes the scary thing go away.",
+    feeling:'Fear dressed up as bravado. He wants distance, and noise buys it.',
+    getting:'Every time he barks and the other dog passes, his outburst "worked." It gets reinforced daily.',
+    now:"Give him distance before he tips over. Find the range where he notices the trigger but can still take a treat, and work there. The second he sees the other dog, feed him, so the trigger predicts chicken instead of conflict. Don't march him up to other dogs to make him deal with it. Turn and make space. Calm is a direction you walk toward.",
+    backfire:'Yanking the leash or yelling when he reacts adds your stress to his. Now the trigger means both danger and your anger.',
+    help:"Help is more there than it looks. Distance plus good timing changes a lot of dogs. If he's big, strong, or has a bite history, a reactivity-experienced trainer is the right call, and reaching for one means you're taking it seriously."},
+  sep:{title:'He falls apart the second you leave',
+    read:"This isn't him being needy or spiteful. A dog who panics alone is a dog who, somewhere, got left and it meant something terrible.",
+    feeling:'Genuine panic. Closer to a human panic attack than to misbehavior.',
+    getting:"Long emotional goodbyes and big homecomings tell him departures are a huge deal. We make them boring.",
+    now:"Keep comings and goings flat and calm, no drama either direction. Practice leaving for seconds, then minutes, building up slowly so being alone stops predicting abandonment. Give him something that lasts, a stuffed frozen Kong, tied to you walking out, so the door starts to mean good things.",
+    backfire:'Punishing the mess or the noise you come home to adds fear to a dog who is already terrified. He can\'t connect it to anything except that you came back upset.',
+    help:"Help is more there than it looks. Mild cases ease with slow, steady practice. True separation panic is real and treatable, often faster with a behavior professional and sometimes your vet, and using them is wisdom, not weakness."},
+  leash:{title:'He drags you down the street',
+    read:"He's not trying to dominate the walk. The world is thrilling and he simply never learned that a loose leash is how you get to keep moving.",
+    feeling:'Excitement and a lack of a rule he was never taught.',
+    getting:'Right now pulling works, he pulls, he gets forward. So he pulls harder.',
+    now:"Make pulling stop working. The moment the leash goes tight, you stop, like a tree. Slack returns, you move again. Boring but it teaches fast: tight leash, nothing happens; loose leash, the walk continues. Reward him for being beside you with a treat down at your knee so that spot pays off.",
+    backfire:'Jerking him back constantly just builds a dog who leans into pressure harder. You become part of the tug-of-war.',
+    help:"Help is more there than it looks. Most pulling is a teaching problem and gets better with consistency. A good force-free trainer can shortcut it, especially if he's strong enough to hurt you."},
+  jump:{title:'He jumps on everyone',
+    read:"Jumping is love with no off switch. He's not being rude, he's flooded with joy and his whole body says hello.",
+    feeling:'Pure social excitement looking for a place to land.',
+    getting:'He jumps, he gets eyes, hands, words, even "off!" is attention. It pays.',
+    now:"Make four-on-the-floor the thing that earns attention. When he jumps, turn away and go quiet, no eyes, no touch, no talk. The instant his feet land, turn back and reward. Ask guests to do the same. He learns the fastest way to get the person is to keep his feet down.",
+    backfire:'Kneeing him or shoving him off reads as rough play to an excited dog. Some jump more, because hey, you engaged.',
+    help:"Help is more there than it looks. This one usually fixes itself with everyone staying consistent. If he's big enough to knock someone over, a trainer can speed it up."},
+  velcro:{title:"A close-bonded dog in a house that's always full",
+    read:"He found his person, you, and after whatever came before, he's terrified to let you out of sight. The full house just gives him more to track and more to lose.",
+    feeling:'Insecurity. He hasn\'t yet learned that you always come back.',
+    getting:'Following you everywhere gets reassured every time. We help him feel safe at a small distance too.',
+    now:"Build tiny absences inside the house. Step behind a door and come right back, before he panics, so distance stops being scary. Give him a great spot of his own, a bed with something that smells like you, near the action but his. Reward him for settling there on his own. Let calm be where the good stuff happens.",
+    backfire:'Shooing him away to "teach independence" confirms his fear that closeness to you is unstable. Gentle, predictable distance works better than rejection.',
+    help:"Help is more there than it looks. Most velcro dogs relax as they learn the house is safe. If it tips into true panic when you leave, a behavior professional can help you build his confidence."},
+  shutdown:{title:"He just came home and he's shut down",
+    read:"This is not him rejecting you. Everything he knew just disappeared, the smells, the sounds, the people, and he has no way of knowing this place is safe yet. Hiding is how he protects himself while he figures it out.",
+    feeling:'Overwhelm. His whole world changed overnight, and he is in survival mode until he learns the new one.',
+    getting:'Hiding gives him control over the one thing he can control: how close the scary new world gets.',
+    now:"Give him a quiet spot that is just his, a crate with the door open or a bed in a low-traffic corner, and let him come out on his own time. Sit nearby and read or scroll your phone so being around you is boring and safe. Keep the same routine every day, same meal times, same potty spots, so he can start predicting his life. Skip the visitors, the pet store trips, and the meet-the-family parties for a while. A lot of rescue dogs need days to decompress, weeks to learn the routine, and months to truly feel at home.",
+    backfire:'Pulling him out to cuddle, or inviting everyone over to meet him, floods a dog who is already drowning. It teaches him people mean pressure, and it can set his trust back weeks.',
+    help:"Help is more there than it looks. Most dogs start to unfold once they feel the routine is real. If he has not eaten at all in more than a day or two, or he is vomiting, has diarrhea, or seems lethargic, call your vet. That is not just nerves anymore."},
+  potty:{title:'He has accidents in the house',
+    read:"He is not doing it to get back at you. Dogs don't think that way. Either he never fully learned where the bathroom is, or a new home wiped out what he knew. A lot of rescue dogs have lived in kennels or outside, so indoors has no rules yet.",
+    feeling:'Confusion. Sometimes discomfort, if something medical is going on.',
+    getting:'Relief, wherever he happens to be when he needs it.',
+    now:"Go back to puppy basics, no matter his age. Take him out after he wakes up, after he eats, after he plays, and every couple of hours in between. Go out with him, stay boring, and the second he finishes, praise him and give him a treat right there outside, not when you get back in. When you can't watch him, keep him in a small space like a crate or gated area. Clean accidents with an enzyme cleaner so the smell doesn't call him back to the same spot.",
+    backfire:'Rubbing his nose in it or scolding him after the fact only teaches him that peeing in front of you is dangerous. Then he starts sneaking off to go behind the couch.',
+    help:"Help is more there than it looks. Consistency usually turns this around in a few weeks. If a dog who was fully house-trained suddenly starts having accidents, or he is peeing a lot or straining, see your vet first. Infections and other medical problems often show up this way."},
+  chew:{title:'He chews up and destroys things',
+    read:"He's not being spiteful. Chewing is how dogs cope, explore, and calm themselves down. A bored or anxious dog will find something to chew. It just might be your shoes.",
+    feeling:'Boredom, stress, or teething in a young dog. Chewing literally feels good and calms him.',
+    getting:'Relief and something to do. The chewing itself is the reward.',
+    now:"Give him things he is allowed to destroy, and rotate them so they stay interesting: chews, stuffed frozen Kongs, cardboard boxes, snuffle mats. Put away what you can't afford to lose while he's learning. If you catch him chewing something wrong, calmly trade it for something right, no drama. Add more sniffing walks and puzzle feeders. A dog who has used his brain all day chews less at night.",
+    backfire:"Chasing him to get the thing back turns it into the best game ever. Punishing him after you find the mess teaches him nothing, because he can't connect it to something he did hours ago.",
+    help:"Help is more there than it looks. Most destructive chewing fades with outlets and management. If it only happens when he's alone, and he goes after doors, windows, or crates, that may be panic, not boredom, so look at the falls-apart-when-I-leave plan too."},
+  nip:{title:'He mouths and nips at hands',
+    read:"He's not trying to hurt you. Mouths are how dogs play and explore. Puppies and teenage dogs especially have big feelings and no idea yet how soft human skin is.",
+    feeling:'Excitement, play, and sometimes exhaustion. Overtired puppies get bitey, just like overtired toddlers get cranky.',
+    getting:'Play and attention. When you squeal and wave your hands, it looks like you are playing back.',
+    now:"Keep a toy in your hand and offer it the moment his mouth heads for skin, so he learns what's for biting. If teeth touch skin anyway, go still and quiet, and calmly end the game for a minute. Then try again. Make sure he is getting enough sleep. Young dogs need a lot, and a lot of nipping is really a dog who needs a nap.",
+    backfire:'Tapping his nose, holding his mouth shut, or rough wrestling to show him who\'s in charge usually makes him play rougher, or makes him scared of hands coming at his face.',
+    help:"Help is more there than it looks. Most mouthy puppies grow out of it with consistency. If he is an adult dog, if he's breaking skin, or if it comes with stiffness or growling instead of play, talk to a trainer or behavior professional."},
+  shy:{title:"He's scared of people",
+    read:"He's not being rude or unfriendly. Somewhere along the way, people either hurt him or he never got the chance to learn they could be safe. Backing away is him asking for space, politely.",
+    feeling:'Fear. People feel unpredictable to him, and he does not trust what their hands are going to do.',
+    getting:'Distance. Every time he backs off and the person leaves him alone, he feels safer, so it keeps working.',
+    now:"Let him make the first move, every time. Ask guests to ignore him completely, no eye contact, no reaching, no talking to him, and to toss a treat on the floor away from themselves. If he comes over to sniff, let him sniff and walk away without being touched. Give him a safe place to go when company comes. Confidence gets built by him choosing to come close, not by being pushed close.",
+    backfire:'Letting people walk up and pet him "so he gets used to it," or holding him while someone touches him, teaches him that people force things on him. That is how a scared dog learns he has to bite to be heard.',
+    help:"Help is more there than it looks. Shy dogs blossom slowly, but they do blossom. If he's growling, snapping, or so scared he can't eat around people, a certified behavior consultant can help, and so can your vet."},
+  noise:{title:'He panics at storms, fireworks, and loud noises',
+    read:"This isn't him being dramatic. To a dog, thunder and fireworks can feel like the world is ending. The fear is real, and it often gets worse over time if nothing changes.",
+    feeling:'Real terror. Shaking, panting, pacing, hiding, trying to escape.',
+    getting:'He is not getting anything from this. He just needs the scary thing to stop.',
+    now:"Make him a safe den, an interior room or a covered crate, with the blinds closed and a fan, TV, or white noise running. It is okay to comfort him. You can't reinforce fear by being kind, so sit with him if that helps. On firework nights and stormy days, make sure his collar and ID tags are on and doors and gates are secure, because scared dogs bolt. On calm days, you can play storm or firework sounds very quietly while he eats something wonderful, slowly turning it up over weeks.",
+    backfire:'Making him "face it" outside, or shutting him away and ignoring him, can make the fear worse. Some dogs hurt themselves trying to escape.',
+    help:"Help is more there than it looks. Noise fear is very common and very treatable. For dogs who panic hard, talk to your vet before the next storm season or holiday. There are medications made for exactly this, and using one is kindness, not giving up."},
+  bark:{title:'He barks at every sound and everything out the window',
+    read:"He thinks he has a job, and the job is guard duty. Every sound outside could be danger, and he's the only one taking it seriously.",
+    feeling:'Alert and on edge. Sometimes boredom, sometimes worry.',
+    getting:'It works, in his mind. He barks at the mail carrier, and the mail carrier leaves. Every single day, he wins.',
+    now:"Block the view he's guarding. Window film, closed blinds, or moving the couch away from the window takes a lot off his shoulders. Run a fan or white noise to soften outside sounds. When he barks, go look, say a calm 'thank you,' then call him away to you and reward him for coming. Give him other things to do with his brain, chews, puzzles, sniffing walks, so the window isn't his whole world.",
+    backfire:'Yelling at him to stop sounds like you are barking right along with him. Now he thinks you are worried too.',
+    help:"Help is more there than it looks. Most alarm barking calms down a lot with management alone. If the barking comes with lunging, panic, or he can't settle at all, a trainer or behavior professional can help."},
+  recall:{title:"He won't come when I call",
+    read:"He's not ignoring you to be stubborn. He's learned that coming back usually means the fun ends: the leash goes on, the park is over, the bath starts.",
+    feeling:'Torn between you and everything else, and right now everything else is winning.',
+    getting:'More time doing what he wants. Running off pays off.',
+    now:"Make coming to you the best thing that happens all day. Practice inside first, from a few feet away, and pay with something amazing every time, real chicken, not a dry biscuit. Never call him for something he dislikes. Go get him instead. Outside, use a long line until coming back is automatic. If his name or 'come' has turned into background noise, pick a brand new word and start fresh.",
+    backfire:"Chasing him turns it into a game of keep-away. Scolding him when he finally does come teaches him that coming back gets him in trouble, so next time he won't.",
+    help:"Help is more there than it looks. Recall is a skill, and skills get built. If he has a strong prey drive, is a flight risk, or lives near roads, keep him on a leash or long line outside a fenced area until a trainer helps you get it solid."},
+  housefight:{title:'My dogs are fighting with each other',
+    read:"Fights between dogs in the same home usually aren't random. There is often something underneath: tension over food, toys, space, or you, a dog who is in pain, or a new dog who got introduced faster than either dog could handle.",
+    feeling:'Stress and competition. One or both dogs feel like something they need is under threat.',
+    getting:'Each fight can make the next one more likely, because both dogs learn to expect trouble from each other.',
+    now:"Keep them apart when you can't watch them. Use baby gates, crates, or separate rooms, and take turns giving them freedom. Feed them apart and pick up toys and chews that cause tension. Learn the warning signs, staring, freezing, stiff bodies, and calmly separate them before it boils over. If a fight does start, never reach in between them with your hands. Make a loud noise, put a barrier between them, or use a board or cushion instead.",
+    backfire:'"Letting them work it out" usually leads to bigger fights and real injuries. Punishing the growling removes the warning and leaves the bite.',
+    help:"Help is more there than it looks. Many homes with fighting dogs find peace again with management and the right plan. If there has been blood, if fights are getting worse, or if you are scared, please bring in a certified behavior professional now, and have your vet check both dogs for pain."},
+  escape:{title:'He digs out, jumps the fence, or bolts out the door',
+    read:"He's not trying to leave you. Something on the other side is calling him louder than anything inside: a scent, another dog, boredom, fear, or just the thrill of running.",
+    feeling:'Usually boredom, frustration, or a big drive to explore. Sometimes fear, if he is running from something.',
+    getting:'Freedom and adventure. Every successful escape makes the next one more likely.',
+    now:"Safety comes first, so fix the gap before training anything. Bury chicken wire along the fence line, add a lean-in topper or coyote rollers, and never leave him alone in the yard until it's secure. For door dashers, use a baby gate or leash at the door, and teach him to wait for a treat before the door opens. Give him more of what he's looking for outside: longer sniff walks, a digging pit in the yard, more time with you.",
+    backfire:"Calling him angrily or chasing him when he gets out teaches him that coming back is scary. Then he runs even farther next time.",
+    help:"Help is more there than it looks. Most escape artists settle with a secure yard and a fuller day. Make sure his ID tags and microchip info are up to date today, and if he is running from fear, look at the noise or shy plans too, or talk to a trainer."},
+};
+
+/* Follow-up diagnostic questions for the help path. Shown AFTER the
+   reassurance and issue pick, BEFORE the plan. They sharpen the read and
+   tell Domenica what her community struggles with. Reassurance stays first
+   so a stressed person feels cared for before answering more. */
+const HELP_FOLLOWUP=[
+  {key:'h_duration', lead:"A few quick things so this actually fits your dog.",
+    q:'How long has this been going on?', opts:[
+    {t:'It is new, the last week or two', v:'new'},
+    {t:'A while now, a month or more', v:'months'},
+    {t:'As long as I have had him', v:'always'}]},
+  {key:'h_intensity', q:'When it happens, how big is it?', opts:[
+    {t:'Mild, more annoying than scary', v:'mild'},
+    {t:'Real, it stops me in my tracks', v:'real'},
+    {t:'Intense, someone could get hurt', v:'intense'}]},
+  {key:'h_when', q:'When does it tend to show up?', opts:[
+    {t:'Around specific things or triggers', v:'triggered'},
+    {t:'When he is alone or I am leaving', v:'alone'},
+    {t:'Pretty much anytime, hard to predict', v:'anytime'}]},
+  {key:'h_tried', q:'What have you already tried?', opts:[
+    {t:'Honestly, I am not sure where to start', v:'nothing'},
+    {t:'A few things I read or was told', v:'some'},
+    {t:'A lot, and I am worn out by it', v:'lots'}]},
+  {key:'h_who', q:'Who else shares the home with him?', opts:[
+    {t:'Just me, or me and other adults', v:'adults'},
+    {t:'Kids in the house too', v:'kids'},
+    {t:'Other pets in the mix', v:'pets'}]},
+];
+
+function helpFlow(){
+  STATE.answers={};
+  const g=HELP_Q[0];
+  go(()=>{
+    const box=el(`<div><h2>${g.q}</h2>
+      <p class="lead">Whatever it is, it doesn't make you a bad owner. It makes you one who's paying attention.</p></div>`);
+    g.opts.forEach(o=>{ const b=el(`<button class="opt"><strong>${o.t}</strong></button>`);
+      b.onclick=()=>{ STATE.answers.issue=o.v; o.v==='unsure'?helpResult('unsure'):helpFollowup(); }; box.appendChild(b); });
+    app.appendChild(box);
+  });
+}
+
+function helpFollowup(){
+  let i=0;
+  const TOTAL=1+HELP_FOLLOWUP.length+1;
+  function ask(){
+    if(i>=HELP_FOLLOWUP.length){ helpResult(STATE.answers.issue); return; }
+    const g=HELP_FOLLOWUP[i];
+    go(()=>{
+      app.appendChild(el(`<div class="progress"><span style="width:${((i+1)/TOTAL)*100}%"></span></div>`));
+      const box=el(`<div>${g.lead?`<p class="lead" style="margin-bottom:8px;color:var(--muted);">${g.lead}</p>`:''}<h2>${g.q}</h2></div>`);
+      g.opts.forEach(o=>{ const b=el(`<button class="opt"><strong>${o.t}</strong></button>`);
+        b.onclick=()=>{ STATE.answers[g.key]=o.v; i++; ask(); }; box.appendChild(b); });
+      app.appendChild(box);
+    });
+  }
+  ask();
+}
+
+function capture(){
+  captureBlock({ app, state:STATE, verb:'help',
+    dest:{ href:'mailto:info@legacypawsrescue.org?subject=Help%20with%20my%20dog', label:'Talk to us about your dog' },
+    extraTags: SCOPE?['via:'+SCOPE]:[], extra:{ scope: SCOPE||'direct' },
+    onRestart: helpFlow });
+}
+
+function helpResult(v){
+  STATE.result={type:'help', issue:v};
+  go(()=>{
+    app.appendChild(el(`<div class="foundation">
+      <h4>First, the ground under all of it</h4>
+      Dogs live in right now. He isn't plotting, and he isn't holding a grudge. He's telling you how he feels in the only language he has: his body. When you change what a behavior earns him, you change the behavior. That's the whole game, and it's gentler than it sounds.</div>`));
+    if(v==='unsure'){
+      app.appendChild(el(`<div class="gap ok">
+        <h4>Something's off, and you noticed. That counts.</h4>
+        <div class="clash">Start here</div>
+        <p class="step-txt">Watch his body for a day like you'd watch a toddler who can't talk yet. When does he stiffen, pant, pace, hide, or get loud? Those moments are him telling you what's hard. Once you can name the moment, come back and pick the issue that fits. You'll get a real plan made for it.</p>
+        <div class="helpline">Help is more there than it looks. If you can't find the pattern, a calm conversation with your vet rules out pain first, which is where a surprising amount of so-called behavior actually starts.</div>
+      </div>`));
+      capture();
+      return;
+    }
+    const pl=PLANS[v];
+    let note='';
+    if(STATE.answers.h_intensity==='intense'){
+      note=`<div class="backfire" style="background:#fbeae7;"><b>One thing first:</b> you said this gets intense enough that someone could get hurt. The plan below is real and worth starting, but please don't carry that part alone. A certified behavior professional, and your vet to rule out pain, are the right call now, and reaching for them is the strong move, not the failing one.</div>`;
+    }
+    app.appendChild(el(`<div class="gap">
+      <h4>${pl.title}</h4>
+      <div class="plan-read">${pl.read}</div>
+      ${note}
+      <div class="step"><span class="step-lbl">What he's feeling</span><span class="step-txt">${pl.feeling}</span></div>
+      <div class="step"><span class="step-lbl">What he's getting from it</span><span class="step-txt">${pl.getting}</span></div>
+      <div class="step"><span class="step-lbl">How we change the now</span><span class="step-txt">${pl.now}</span></div>
+      <div class="backfire"><b>The well-meaning move that backfires:</b> ${pl.backfire}</div>
+      <div class="helpline">${pl.help}</div>
+    </div>`));
+    capture();
+  });
+}
+
+helpFlow();
+</script>
+</body></html>
