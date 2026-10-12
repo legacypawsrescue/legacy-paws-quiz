@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Find Your Match | Legacy Paws</title>
+<title>The Fit Check | Legacy Paws</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="wrap">
   <div class="brand">
     <div class="paw">🐾</div>
-    <h1>Find Your Match</h1>
+    <h1>The Fit Check</h1>
     <p>Honest matching. Real dogs. The right fit, not just the cutest one.</p>
     <div class="partner-banner" id="partner-banner"></div>
   </div>
@@ -210,6 +210,47 @@ function archetypeBlock(top, second, noMatch){
   </div>`);
 }
 
+/* ---------------- WHAT TO LOOK FOR + RED FLAGS ----------------
+   Shown on every result, so people know how to choose well
+   wherever they end up meeting dogs. Red flags come from the
+   archetype AND from this person's own answers. */
+function lifeRedFlags(a){
+  const f=[];
+  if(a.kids==='young'||a.kids==='older'){
+    f.push("Growls, freezes, or walks away when kids get close, or has ever snapped at a child");
+    f.push("Guards food, toys, or his bed. Kids can't always read that warning in time");
+  }
+  if(a.pets_cats==='yes') f.push("Stares hard at cats, lunges, or can't be called away from one. Ask if he has actually lived with a cat, not just that he seemed fine near one");
+  if(a.pets_dogs==='yes') f.push("Stiff, tall greetings, raised hackles, or lunging at dogs on leash. Ask for a meeting with your dog before you commit");
+  if(a.pets_small==='yes') f.push("Fixates on or chases chickens, rabbits, or squirrels");
+  if(a.exp==='new') f.push("Any bite history, or the rescue says he needs an experienced handler. That's not a no forever, it's a not yet");
+  if(a.home_hours==='away') f.push("Panics, howls, or destroys things when he's left alone");
+  if(a.housing==='apartment') f.push("Barks at every sound, or needs hours of hard exercise to settle");
+  if(a.housing==='house_nofence') f.push("Known for running off or bolting out of doors, since there's no fence to catch him");
+  if(a.hard_days==='settled') f.push("Brand new to rescue with no known history. Look for a dog who has spent real time in a foster home, so someone can tell you who he is");
+  return f;
+}
+
+function lookElsewhereBlock(top, a){
+  const A=ARCHETYPES[top];
+  const reds=[...new Set(lifeRedFlags(a).concat(A.redFlags))];
+  const li=x=>`<li style="margin:0 0 6px 18px;font-size:14px;">${esc(x)}</li>`;
+  return el(`<div>
+    <div class="gap ok">
+      <h4>What to look for in your dog, here or anywhere</h4>
+      <div class="clash">Signs a dog is truly ${A.name}</div>
+      <ul>${A.lookFor.map(li).join('')}</ul>
+      <p class="step-txt" style="margin-top:8px;">Watch how a dog acts more than how he looks. Ask to see him somewhere other than a kennel, because stress hides who a dog really is.</p>
+    </div>
+    <div class="gap">
+      <h4>Red flags: dogs who wouldn't be a fair match for your life</h4>
+      <p class="step-txt" style="margin-bottom:10px;">A dog who shows these isn't a bad dog. Dogs are just like people. Each one is unique and does best in certain homes, and these are signs he needs a different one.</p>
+      <ul>${reds.map(li).join('')}</ul>
+      <div class="backfire"><b>Red flags in the rescue, not the dog:</b> they can't tell you how he does with kids, cats, or other dogs and just say he'll be fine. They push you to decide today. Or there's no plan for him if it doesn't work out. A good rescue would rather take a dog back than have him passed along or lost.</div>
+    </div>
+  </div>`);
+}
+
 function dogCard(d, adopted){
   const r=rescueOf(d);
   const showRescue = !SCOPE && d.rescue!==HOME_RESCUE;
@@ -254,6 +295,7 @@ function matchDogs(){
         <p class="lead">Based on your home, none of the dogs available right now would be a safe, honest fit. That's not a no to you. It often just means timing, and the right dog isn't here yet. Leave your email and we'll reach out the moment one arrives who truly fits your life.</p>
       </div>`));
       app.appendChild(archetypeBlock(topArch, secondArch, true));
+      app.appendChild(lookElsewhereBlock(topArch, STATE.answers));
       if(adopted.length){
         const sb=el(`<div><p class="lead" style="color:var(--muted);margin-bottom:10px;">And so you know the wait is worth it, here's how it goes when it works:</p></div>`);
         adopted.forEach(d=>sb.appendChild(dogCard(d,true)));
@@ -267,6 +309,8 @@ function matchDogs(){
     box.appendChild(archetypeBlock(topArch, secondArch, false));
     passing.forEach(d=>box.appendChild(dogCard(d,false)));
     adopted.forEach(d=>box.appendChild(dogCard(d,true)));
+    box.appendChild(el(`<p class="lead" style="margin:18px 0 8px;">Whether one of these dogs is yours or you keep looking, here's how to choose well.</p>`));
+    box.appendChild(lookElsewhereBlock(topArch, STATE.answers));
     app.appendChild(box);
     captureBlock(capOpts);
   });
