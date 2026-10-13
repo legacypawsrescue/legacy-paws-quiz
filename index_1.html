@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Fit Check | Legacy Paws</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="paw">🐾</div>
+    <h1>The Fit Check</h1>
+    <p>Honest matching. Real dogs. The right fit, not just the cutest one.</p>
+  </div>
+  <div class="card">
+    <h2>What brings you here today?</h2>
+    <p class="lead">No wrong answer. We'll take it from here.</p>
+    <a class="opt" style="text-decoration:none;" data-href="match.html?intent=adopt"><strong>I'm hoping to adopt</strong>
+      <span>Find the dog whose life fits yours, starting with a foster-to-adopt trial.</span></a>
+    <a class="opt" style="text-decoration:none;" data-href="match.html?intent=foster"><strong>I want to foster</strong>
+      <span>Open your home for a while. It matters more than you know.</span></a>
+    <a class="opt" style="text-decoration:none;" data-href="help.html"><strong>I need help with my own dog</strong>
+      <span>Something's hard right now. Let's look at it together.</span></a>
+  </div>
+  <div id="subscribe"></div>
+</div>
+<script src="shared.js"></script>
+<script>
+  subscribeBlock(document.getElementById('subscribe'), 'front-door');
+  // Carry ?rescue=... through to whichever tool they pick.
+  const r = new URLSearchParams(location.search).get('rescue');
+  document.querySelectorAll('[data-href]').forEach(a=>{
+    let h = a.dataset.href;
+    if(r) h += (h.includes('?')?'&':'?') + 'rescue=' + encodeURIComponent(r);
+    a.href = h;
+  });
+</script>
+</body></html>
