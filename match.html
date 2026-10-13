@@ -60,7 +60,7 @@ fetch('dogs.json',{cache:'no-store'})
     paintBanner();
     document.getElementById('crosslink').innerHTML =
       `Struggling with a dog you already have? <a href="help.html${keep()}">Get help with your dog</a>`;
-    gateFlow();
+    PRESET_INTENT ? gateFlow(PRESET_INTENT) : startScreen();
   })
   .catch(()=>{ app.innerHTML='<p class="lead">The dogs did not load. Please refresh the page.</p>'; });
 
@@ -74,9 +74,6 @@ function paintBanner(){
 /* ---------------- GATES ----------------
    Only these six DECIDE the match. They are hard safety gates. */
 const GATES=[
-  {key:'intent', q:'Are you hoping to adopt or foster?', opts:[
-    {t:'Adopt. I want a dog of my own, starting with foster-to-adopt', v:'adopt'},
-    {t:'Foster. I want to open my home for a while', v:'foster'}]},
   {key:'kids', q:'Who lives in your home?', opts:[
     {t:'Adults only', v:'none'},
     {t:'Older kids (school age and up)', v:'older'},
@@ -144,9 +141,33 @@ const REFLECT=[
     {t:'Just looking, feeling it out', v:'looking'}]},
 ];
 
-function gateFlow(){
+/* ---------------- START: adopt, foster, or help ----------------
+   Shown first unless the link already says ?intent=adopt or ?intent=foster. */
+const PRESET_INTENT = ['adopt','foster'].includes(params.get('intent')) ? params.get('intent') : null;
+const INTENT_TEXT = { adopt:"I'm hoping to adopt", foster:'I want to foster' };
+function startScreen(){
+  go(()=>{
+    app.appendChild(el(`<div>
+      <h2>What brings you here today?</h2>
+      <p class="lead">No wrong answer. We'll take it from here.</p>
+      <button class="opt" data-i="adopt"><strong>I'm hoping to adopt</strong>
+        <span>Find the dog whose life fits yours, starting with a foster-to-adopt trial.</span></button>
+      <button class="opt" data-i="foster"><strong>I want to foster</strong>
+        <span>Open your home for a while. It matters more than you know.</span></button>
+      <button class="opt" data-i="help"><strong>I need help with my own dog</strong>
+        <span>Something's hard right now. Let's look at it together.</span></button>
+    </div>`));
+    app.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{
+      const v=b.dataset.i;
+      if(v==='help'){ location.href='help.html'+keep(); return; }
+      gateFlow(v);
+    });
+  });
+}
+
+function gateFlow(intent){
   let i=0;
-  STATE.answers={}; STATE.text={};
+  STATE.answers={ intent }; STATE.text={ 'What brings you here today?': INTENT_TEXT[intent] };
   const TOTAL=GATES.length+REFLECT.length;
   function ask(){
     if(i>=GATES.length+REFLECT.length){ matchDogs(); return; }
@@ -380,7 +401,7 @@ function matchDogs(){
   lpRecord(Object.assign({ path:'match', tags:['quiz','match','anonymous','intent:'+STATE.answers.intent,'archetype:'+topArch]
     .concat(passing.map(d=>'dog:'+d.id)).concat(SCOPE?['via:'+SCOPE]:[]), scope: SCOPE||'all' }, reportFields));
 
-  const restart=()=>{ const r=el(`<button class="btn ghost restart">Start over</button>`); r.onclick=gateFlow; return r; };
+  const restart=()=>{ const r=el(`<button class="btn ghost restart">Start over</button>`); r.onclick=startScreen; return r; };
 
   go(()=>{
     if(!passing.length){
