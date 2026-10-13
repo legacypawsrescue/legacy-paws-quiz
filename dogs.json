@@ -7,7 +7,9 @@
       "logo": "",
       "email": "info@legacypawsrescue.org",
       "adopt_url": "https://www.legacypawsrescue.org/adoption-application",
-      "approved": true
+      "approved": true,
+      "foster_url": "https://www.legacypawsrescue.org/foster",
+      "foster_to_adopt_url": "https://www.legacypawsrescue.org/foster-to-adopt"
     }
   },
   "dogs": [

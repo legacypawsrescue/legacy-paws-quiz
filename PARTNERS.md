@@ -40,7 +40,9 @@ The safety answers decide **who sees** a dog. The archetype decides **how well t
 | Help with my dog | `.../help.html` |
 | Dog Archetype Assessment (staff and approved partners) | `.../dog-archetype.html?rescue=RESCUE-ID` |
 
-A partner shares their own matching link (for example `match.html?rescue=animalcity`). People who come in through it see only that rescue's dogs, see the rescue's name at the top, and get sent to that rescue's own adoption application.
+A partner shares their own matching link (for example `match.html?rescue=animalcity`). People who come in through it see only that rescue's dogs and see the rescue's name at the top.
+
+**Every application goes through Legacy Paws.** People choose adopt or foster at the start of the quiz. At the end they're sent to Legacy Paws' foster-to-adopt application (adopt) or foster application (foster), even if no dog matches yet. If a partner's dog caught their eye, they tap "I'm interested in [dog]" and mention that dog on the application. Legacy Paws gets to know them first, then makes the match together with the partner caring for that dog, so partners receive screened, interested people rather than cold applications.
 
 ## Adding an approved rescue (Legacy Paws only)
 
@@ -66,7 +68,7 @@ Each dog's entry comes from the assessment. Fields, if you ever edit one by hand
 
 ## Where the leads go
 
-Every email someone leaves lands in the Legacy Paws QuizLeads collection, tagged with the rescue(s) whose dogs they matched (`rescue:animalcity`), the link they came in through (`via:animalcity`), and that rescue's lead email, so it's easy to pass along.
+Every finished quiz lands in the Legacy Paws QuizLeads collection with whether they want to adopt or foster (`intent:adopt`, `intent:foster`), the dogs they're interested in (`interested:biscuit`), the link they came in through (`via:animalcity`), and whether they clicked through to the application (`application-click`). Legacy Paws follows up first, then brings the partner in.
 
 ## Is the assessment page private?
 

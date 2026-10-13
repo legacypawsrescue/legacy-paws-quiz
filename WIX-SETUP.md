@@ -14,6 +14,9 @@ Right now QuizLeads only keeps `email, name, path, tags, resultLabel, fosterDura
 | `matchedDogs` | Text | Names of the dogs who matched (array, store joined with commas) |
 | `matchedRescues` | Text | Rescue IDs of matched dogs (array, join with commas) |
 | `rescueEmails` | Text | Lead emails for those rescues (array, join with commas) |
+| `intent` | Text | `adopt` or `foster` |
+| `interestedIn` | Text | Dogs they said they're interested in (array, join with commas) |
+| `note` | Text (long) | Anything they wanted Legacy Paws to know |
 | `scope` | Text | Which link they came in on (`all`, a partner ID, or `direct`) |
 | `anonymous` | Boolean | `true` when the person finished without leaving an email |
 | `subscribe` / `sendCheatSheet` | Boolean | Joined the email list / should get the cheat sheet |
@@ -29,7 +32,8 @@ Every finished quiz now sends one record **even if the person never leaves an em
 ## 3. Notify Domenica when something important arrives
 
 Please send an email to Domenica whenever a QuizLeads row arrives with any of:
-- an email address (a real lead), or
+- the tag `not-ready-yet` (left an email but isn't ready to apply), or
+- any other email address (a real lead), or
 - `path: "dog-profile"` (a partner dog waiting for her review)
 
 Use whatever's easiest (a Wix Automation on new CMS items if available, or a triggered email from the backend). Include `name`, `email`, `path`, and `resultLabel` in the email, since `resultLabel` already reads as a full summary.

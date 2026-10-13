@@ -261,9 +261,12 @@ function result(){
       const contact={
         email:S.about.email, name:S.about.name, path:'dog-profile',
         tags:['dog-profile','needs-review','rescue:'+profile.rescue,'archetype:'+top],
-        resultLabel:'archetype:'+top+(close?' (close: '+second+')':''),
+        resultLabel:'Dog profile for review | Rescue: '+S.about.rescue+' | Dog: '+S.dog.name
+          +' | Archetype: '+ARCHETYPES[top].name+(close?' (close call: '+ARCHETYPES[second].name+')':'')
+          +' || DOGS.JSON ENTRY: '+JSON.stringify(profile),
         details:'Rescue: '+S.about.rescue+' | Dog: '+S.dog.name+' | '+Object.entries(S.picks).map(([k,v])=>k+'='+v).join('; ')
-               +' | gates: '+JSON.stringify(S.gates),
+               +' | gates: '+JSON.stringify(S.gates)
+               +'\n\nDOGS.JSON ENTRY (copy everything below):\n'+JSON.stringify(profile,null,2),
         rescueName:S.about.rescue, dogProfile:profile, scores:S.scores
       };
       lpSend(contact).then(()=>{

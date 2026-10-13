@@ -62,6 +62,17 @@ function subscribeBlock(container, source){
   };
 }
 
+/* ---------- QUIET RECORD ----------
+   Sends a record of a finished quiz even when nobody leaves an email
+   (marked anonymous). Never shows an error to the person. */
+function lpRecord(payload){
+  try{ lpSend(Object.assign({ email:'', name:'', anonymous:true }, payload)).catch(()=>{}); }catch(e){}
+}
+function readableAnswers(text){
+  return Object.entries(text||{}).map(([q,a])=>q.replace(/\s+$/,'')+' '+a).join(' | ');
+}
+const ANON_NOTE = '<p class="privacy" style="margin-top:10px;">We save quiz answers, without your name or email, to help us make better matches.</p>';
+
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 function makeGo(app){

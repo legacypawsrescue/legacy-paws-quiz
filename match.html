@@ -74,6 +74,9 @@ function paintBanner(){
 /* ---------------- GATES ----------------
    Only these six DECIDE the match. They are hard safety gates. */
 const GATES=[
+  {key:'intent', q:'Are you hoping to adopt or foster?', opts:[
+    {t:'Adopt. I want a dog of my own, starting with foster-to-adopt', v:'adopt'},
+    {t:'Foster. I want to open my home for a while', v:'foster'}]},
   {key:'kids', q:'Who lives in your home?', opts:[
     {t:'Adults only', v:'none'},
     {t:'Older kids (school age and up)', v:'older'},
@@ -143,7 +146,7 @@ const REFLECT=[
 
 function gateFlow(){
   let i=0;
-  STATE.answers={};
+  STATE.answers={}; STATE.text={};
   const TOTAL=GATES.length+REFLECT.length;
   function ask(){
     if(i>=GATES.length+REFLECT.length){ matchDogs(); return; }
@@ -152,7 +155,7 @@ function gateFlow(){
       app.appendChild(el(`<div class="progress"><span style="width:${(i/TOTAL)*100}%"></span></div>`));
       const box=el(`<div>${g.lead?`<p class="lead" style="margin-bottom:8px;color:var(--muted);">${g.lead}</p>`:''}<h2>${g.q}</h2></div>`);
       g.opts.forEach(o=>{ const b=el(`<button class="opt"><strong>${o.t}</strong></button>`);
-        b.onclick=()=>{ STATE.answers[g.key]=o.v; i++; ask(); }; box.appendChild(b); });
+        b.onclick=()=>{ STATE.answers[g.key]=o.v; STATE.text[g.q]=o.t; i++; ask(); }; box.appendChild(b); });
       app.appendChild(box);
     });
   }
@@ -256,16 +259,99 @@ function dogCard(d, adopted){
   const showRescue = !SCOPE && d.rescue!==HOME_RESCUE;
   const arch = ARCHETYPES[d.archetype];
   const why = d.why || (arch ? arch.fit : '');
-  const applyHref = d.link || r.adopt_url;
-  return el(`<div class="match"${adopted?' style="border-left-color:var(--teal);background:#f2fafb;"':''}>
+  const card = el(`<div class="match"${adopted?' style="border-left-color:var(--teal);background:#f2fafb;"':''}>
     ${d.photo?`<img class="dogpic" src="${esc(d.photo)}" alt="${esc(d.name)}">`:''}
     <h4>${esc(d.emoji||'🐶')} ${esc(d.name)}${adopted?' <span style="font-size:12px;color:var(--teal);font-weight:700;">ADOPTED</span>':''}</h4>
-    ${arch&&!adopted?`<div class="rescue-tag" style="background:#e8f7f8;">${arch.name}</div> `:''}${showRescue?`<div class="rescue-tag">With ${esc(r.name)}</div>`:''}
+    ${arch&&!adopted?`<div class="rescue-tag" style="background:#e8f7f8;">${arch.name}</div> `:''}${showRescue&&!adopted?`<div class="rescue-tag">Cared for by ${esc(r.name)}</div>`:''}
     ${!adopted&&d.strong?`<div class="why" style="color:var(--teal);">A strong fit for the life you described</div>`:''}
     ${!adopted&&why?`<div class="why">Why you: ${esc(why)}</div>`:''}
     <p>${esc(d.story)}</p>
-    ${!adopted&&showRescue&&applyHref?`<a class="apply" href="${esc(applyHref)}" target="_top">Meet ${esc(d.name)} through ${esc(r.name)} →</a>`:''}
+    ${!adopted?`<button class="btn interest-btn" data-dog="${esc(d.id)}" style="margin-top:12px;padding:10px 20px;font-size:14px;">I'm interested in ${esc(d.name)}</button>`:''}
   </div>`);
+  return card;
+}
+
+/* ---------------- NEXT STEP: THE APPLICATION ----------------
+   Everyone gets sent to an application, matches or not.
+   Adopt  -> foster-to-adopt application
+   Foster -> foster application
+   Applications always go through Legacy Paws, including for partner
+   dogs, because Legacy Paws makes every match. URLs live in dogs.json
+   (rescues.legacy-paws.foster_to_adopt_url / foster_url). */
+let INTERESTED=[];
+function appInfo(){
+  const lp=RESCUES[HOME_RESCUE]||{};
+  return STATE.answers.intent==='foster'
+    ? { url: lp.foster_url || 'https://www.legacypawsrescue.org/foster', label:'Start my foster application',
+        title:'Your next step: the foster application',
+        body: "Fill it out now, even if none of our dogs is the right fit today. Fosters are who we call the moment a dog needs a safe place to land, and we'll reach out when one fits your home." }
+    : { url: lp.foster_to_adopt_url || lp.adopt_url, label:'Start my foster-to-adopt application',
+        title:'Your next step: the foster-to-adopt application',
+        body: "With foster-to-adopt, the dog comes home with you for a 14-day trial first, so you both get to find out if it's truly right before anything is final. Fill it out now, even if no dog is the right fit today. When one arrives who fits your life, you'll already be on our list and we'll reach out." };
+}
+
+function applicationBlock(reportFields){
+  const A=appInfo();
+  const box=el(`<div class="capture" id="apply" style="border-color:var(--teal);background:#f2fafb;">
+    <h3>${A.title}</h3>
+    <p>${A.body}</p>
+    <p id="apply-dogs" style="font-weight:600;color:var(--navy);display:none;"></p>
+    <a class="btn full" id="apply-btn" href="${esc(A.url)}" target="_top" style="text-decoration:none;">${A.label}</a>
+    <div class="privacy">No obligation. Applying just lets us get to know you.</div>
+  </div>`);
+  box.querySelector('#apply-btn').addEventListener('click',()=>{
+    const names=INTERESTED.map(d=>d.name+(d.rescue!==HOME_RESCUE?' ('+(RESCUES[d.rescue]||{}).name+')':''));
+    lpRecord(Object.assign({}, reportFields, { path:'match',
+      tags:['quiz','match','application-click','intent:'+STATE.answers.intent].concat(INTERESTED.map(d=>'interested:'+d.id)).concat(SCOPE?['via:'+SCOPE]:[]),
+      resultLabel:'WENT TO '+(STATE.answers.intent==='foster'?'FOSTER':'FOSTER-TO-ADOPT')+' APPLICATION | Interested in: '+(names.join(', ')||'no specific dog')+' | '+reportFields.resultLabel,
+      interestedIn:names, intent:STATE.answers.intent }));
+  });
+  return box;
+}
+
+function showInterested(){
+  const p=document.getElementById('apply-dogs'); if(!p) return;
+  if(!INTERESTED.length){ p.style.display='none'; return; }
+  p.textContent='On your application, tell us you\'re interested in '+INTERESTED.map(d=>d.name).join(' and ')+'.';
+  p.style.display='block';
+}
+
+function notReadyBlock(reportFields, noMatch){
+  const box=el(`<div class="capture" id="notready">
+    <h3>Not ready to apply yet?</h3>
+    <p>That's okay. Leave your email and we'll send your free <strong>Dog Parent Cheat Sheet</strong>${noMatch?", and let you know when a dog arrives who fits your life":""}. No pressure, ever.</p>
+    <div class="err" id="nr-err">Please enter a valid email.</div>
+    <input id="nr-name" type="text" placeholder="First name (optional)" autocomplete="given-name">
+    <input id="nr-email" type="email" placeholder="you@email.com" autocomplete="email">
+    <button class="btn full navy" id="nr-send">Send me the cheat sheet</button>
+    <div class="privacy">We never share or sell your email. Unsubscribe anytime.</div>
+  </div>`);
+  box.querySelector('#nr-send').onclick=()=>{
+    const email=box.querySelector('#nr-email').value.trim(), name=box.querySelector('#nr-name').value.trim();
+    const err=box.querySelector('#nr-err');
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ err.style.display='block'; return; }
+    err.style.display='none';
+    const names=INTERESTED.map(d=>d.name);
+    const contact=subscribeFields(Object.assign({}, reportFields, { email, name, path:'match',
+      tags:['quiz','match','not-ready-yet','intent:'+STATE.answers.intent].concat(INTERESTED.map(d=>'interested:'+d.id)).concat(SCOPE?['via:'+SCOPE]:[]),
+      resultLabel:'NOT READY TO APPLY YET ('+STATE.answers.intent+') | Interested in: '+(names.join(', ')||'no specific dog')+' | '+reportFields.resultLabel,
+      interestedIn:names, intent:STATE.answers.intent, scope:SCOPE||'all' }), true);
+    const btn=box.querySelector('#nr-send'); btn.textContent='Saving...'; btn.disabled=true;
+    lpSend(contact).then(()=>{ box.innerHTML=cheatSheetDelivered(name); })
+      .catch(()=>{ btn.textContent='Try again'; btn.disabled=false; err.textContent='Something went wrong. Please try again.'; err.style.display='block'; });
+  };
+  return box;
+}
+
+function wireInterestButtons(passing){
+  app.querySelectorAll('.interest-btn').forEach(b=>b.onclick=()=>{
+    const d=passing.find(x=>x.id===b.dataset.dog);
+    if(d && !INTERESTED.includes(d)) INTERESTED.push(d);
+    b.textContent='Added ✓';
+    showInterested();
+    const box=document.getElementById('apply');
+    if(box) box.scrollIntoView({behavior:'smooth', block:'start'});
+  });
 }
 
 function matchDogs(){
@@ -279,40 +365,52 @@ function matchDogs(){
     .sort((x,y)=>y.fit-x.fit);
   const adopted=DOGS.filter(d=>d.status==='adopted' && inScope(d));
   STATE.result={type:STATE.path, dogs:passing.map(d=>d.id)};
-  const verb='adopt';
-  const home = RESCUES[SCOPE||HOME_RESCUE] || {};
-  const dest = { href: home.adopt_url, label: 'Start an adoption application' };
-  const matchedRescues=[...new Set(passing.map(d=>d.rescue))];
-  const capOpts = { app, state:STATE, verb, dest, onRestart:gateFlow,
-    extraTags: matchedRescues.map(r=>'rescue:'+r).concat(SCOPE?['via:'+SCOPE]:[]),
-    extra: { scope: SCOPE||'all', matchedRescues,
-             rescueEmails: matchedRescues.map(r=>(RESCUES[r]||{}).email).filter(Boolean) } };
+  INTERESTED=[];
+
+  // Everything Legacy Paws needs to see, in plain words.
+  const matchedNames = passing.map(d=>d.name+(d.rescue!==HOME_RESCUE?' ('+(RESCUES[d.rescue]||{}).name+')':''));
+  const answersText = readableAnswers(STATE.text);
+  const summary = 'Archetype: '+ARCHETYPES[topArch].name+' (close second: '+ARCHETYPES[secondArch].name+')'
+    + ' | Matched dogs: '+(matchedNames.join(', ')||'none right now')
+    + ' | Answers: '+answersText;
+  const intentLabel = STATE.answers.intent==='foster' ? 'Wants to FOSTER' : 'Wants to ADOPT (foster-to-adopt)';
+  const reportFields = { resultLabel: intentLabel+' | '+summary, intent: STATE.answers.intent, details: answersText, archetype: topArch,
+                         archetypeName: ARCHETYPES[topArch].name, matchedDogs: matchedNames,
+                         matchedRescues: [...new Set(passing.map(d=>d.rescue))] };
+  lpRecord(Object.assign({ path:'match', tags:['quiz','match','anonymous','intent:'+STATE.answers.intent,'archetype:'+topArch]
+    .concat(passing.map(d=>'dog:'+d.id)).concat(SCOPE?['via:'+SCOPE]:[]), scope: SCOPE||'all' }, reportFields));
+
+  const restart=()=>{ const r=el(`<button class="btn ghost restart">Start over</button>`); r.onclick=gateFlow; return r; };
 
   go(()=>{
     if(!passing.length){
       app.appendChild(el(`<div>
         <h2>Let's talk first.</h2>
-        <p class="lead">Based on your home, none of the dogs available right now would be a safe, honest fit. That's not a no to you. It often just means timing, and the right dog isn't here yet. Leave your email and we'll reach out the moment one arrives who truly fits your life.</p>
+        <p class="lead">Based on your home, none of the dogs available right now would be a safe, honest fit. That's not a no to you. It often just means timing, and the right dog isn't here yet. Apply anyway, and we'll reach out the moment one arrives who fits.</p>
       </div>`));
       app.appendChild(archetypeBlock(topArch, secondArch, true));
+      app.appendChild(applicationBlock(reportFields));
+      app.appendChild(notReadyBlock(reportFields, true));
       app.appendChild(lookElsewhereBlock(topArch, STATE.answers));
       if(adopted.length){
-        const sb=el(`<div><p class="lead" style="color:var(--muted);margin-bottom:10px;">And so you know the wait is worth it, here's how it goes when it works:</p></div>`);
+        const sb=el(`<div><p class="lead" style="color:var(--muted);margin:16px 0 10px;">And so you know the wait is worth it, here's how it goes when it works:</p></div>`);
         adopted.forEach(d=>sb.appendChild(dogCard(d,true)));
         app.appendChild(sb);
       }
-      captureBlock(capOpts);
+      app.appendChild(el(ANON_NOTE)); app.appendChild(restart());
       return;
     }
-    const box=el(`<div><h2>Here's who could be your match</h2>
-      <p class="lead">Honest matches only. These are the dogs who'd be safe and happy in the home you described, with the best fit for your life first.</p></div>`);
-    box.appendChild(archetypeBlock(topArch, secondArch, false));
-    passing.forEach(d=>box.appendChild(dogCard(d,false)));
-    adopted.forEach(d=>box.appendChild(dogCard(d,true)));
-    box.appendChild(el(`<p class="lead" style="margin:18px 0 8px;">Whether one of these dogs is yours or you keep looking, here's how to choose well.</p>`));
-    box.appendChild(lookElsewhereBlock(topArch, STATE.answers));
-    app.appendChild(box);
-    captureBlock(capOpts);
+    app.appendChild(el(`<div><h2>Here's who could be your match</h2>
+      <p class="lead">Honest matches only. These are the dogs who'd be safe and happy in the home you described, with the best fit for your life first.</p></div>`));
+    app.appendChild(archetypeBlock(topArch, secondArch, false));
+    passing.forEach(d=>app.appendChild(dogCard(d,false)));
+    app.appendChild(applicationBlock(reportFields));
+    app.appendChild(notReadyBlock(reportFields, false));
+    app.appendChild(el(`<p class="lead" style="margin:22px 0 8px;">Whether one of these dogs is yours or you keep looking, here's how to choose well.</p>`));
+    app.appendChild(lookElsewhereBlock(topArch, STATE.answers));
+    adopted.forEach(d=>app.appendChild(dogCard(d,true)));
+    app.appendChild(el(ANON_NOTE)); app.appendChild(restart());
+    wireInterestButtons(passing);
   });
 }
 </script>

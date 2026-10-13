@@ -197,13 +197,13 @@ const HELP_FOLLOWUP=[
 ];
 
 function helpFlow(){
-  STATE.answers={};
+  STATE.answers={}; STATE.text={};
   const g=HELP_Q[0];
   go(()=>{
     const box=el(`<div><h2>${g.q}</h2>
       <p class="lead">Whatever it is, it doesn't make you a bad owner. It makes you one who's paying attention.</p></div>`);
     g.opts.forEach(o=>{ const b=el(`<button class="opt"><strong>${o.t}</strong></button>`);
-      b.onclick=()=>{ STATE.answers.issue=o.v; o.v==='unsure'?helpResult('unsure'):helpFollowup(); }; box.appendChild(b); });
+      b.onclick=()=>{ STATE.answers.issue=o.v; STATE.text[g.q]=o.t; o.v==='unsure'?helpResult('unsure'):helpFollowup(); }; box.appendChild(b); });
     app.appendChild(box);
   });
 }
@@ -218,18 +218,29 @@ function helpFollowup(){
       app.appendChild(el(`<div class="progress"><span style="width:${((i+1)/TOTAL)*100}%"></span></div>`));
       const box=el(`<div>${g.lead?`<p class="lead" style="margin-bottom:8px;color:var(--muted);">${g.lead}</p>`:''}<h2>${g.q}</h2></div>`);
       g.opts.forEach(o=>{ const b=el(`<button class="opt"><strong>${o.t}</strong></button>`);
-        b.onclick=()=>{ STATE.answers[g.key]=o.v; i++; ask(); }; box.appendChild(b); });
+        b.onclick=()=>{ STATE.answers[g.key]=o.v; STATE.text[g.q]=o.t; i++; ask(); }; box.appendChild(b); });
       app.appendChild(box);
     });
   }
   ask();
 }
 
+function helpReport(){
+  const v=STATE.answers.issue;
+  const title = v==='unsure' ? "Not sure, something's off" : PLANS[v].title;
+  const answersText = readableAnswers(STATE.text);
+  return { resultLabel: 'Help: '+title+' | Answers: '+answersText, details: answersText };
+}
+
 function capture(){
+  const rep=helpReport();
+  lpRecord(Object.assign({ path:'help', tags:['quiz','help','anonymous','help:'+STATE.answers.issue].concat(SCOPE?['via:'+SCOPE]:[]),
+    scope: SCOPE||'direct' }, rep));
   captureBlock({ app, state:STATE, verb:'help',
     dest:{ href:'mailto:info@legacypawsrescue.org?subject=Help%20with%20my%20dog', label:'Talk to us about your dog' },
-    extraTags: SCOPE?['via:'+SCOPE]:[], extra:{ scope: SCOPE||'direct' },
+    extraTags: SCOPE?['via:'+SCOPE]:[], extra:{ ...rep, scope: SCOPE||'direct' },
     onRestart: helpFlow });
+  app.appendChild(el(ANON_NOTE));
 }
 
 function helpResult(v){
